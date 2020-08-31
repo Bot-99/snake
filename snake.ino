@@ -22,7 +22,9 @@ int lose_gui[8][8] = {{1,0,0,0,0,0,0,1},
                     {0,1,0,0,0,0,1,0},
                     {1,0,0,0,0,0,0,1}};
 
-int fruit_x, fruit_y;
+int fruit_x = 3;
+int fruit_y = random(1,7);
+int last_fruit_x, last_fruit_y;
 
 int snake_gui[64][2];
 
@@ -76,15 +78,18 @@ bool compare_snake_fruit(){
 }
 
 void generate_fruit(){ //int * fruit_x, int * fruit_y, int gui[8][8]
-    while(compare_snake_fruit()){
-        fruit_x = random(0,7);
-        fruit_y = random(0,7);  
-        //fruit_x = fruit_y; 
-    }
-//    Serial.print(x);
-//    Serial.print(" ");
-//    Serial.print(y);
-//    Serial.print("\n");
+    do{
+        fruit_x = random(1,6);
+        fruit_y = random(1,6);
+        last_fruit_x = fruit_x;
+        last_fruit_y = fruit_y;
+        Serial.print("generating");
+    }while(compare_snake_fruit());
+    Serial.print("fruit: ");
+    Serial.print(fruit_x);
+    Serial.print(" ");
+    Serial.print(fruit_y);
+    Serial.print("\n");
 }
 
 void draw_gui(){
@@ -140,17 +145,44 @@ void get_cmd(){
 void snake_control(){
     if(direction_ == 1){ //down
         snake_h_y--;
+        if(snake_h_x == fruit_x and snake_h_y == fruit_y){
+            snake_gui[snake_size][0] = snake_h_x;
+            snake_gui[snake_size][1] = snake_h_y;
+            snake_size++;
+            generate_fruit();
+            snake_h_y--;
+        }
     }
     else if(direction_ == 2){ //up
         snake_h_y++;
+        if(snake_h_x == fruit_x and snake_h_y == fruit_y){
+            snake_gui[snake_size][0] = snake_h_x;
+            snake_gui[snake_size][1] = snake_h_y;
+            snake_size++;
+            generate_fruit();
+            snake_h_y++;
+        }
     }
     else if(direction_ == 3){ //left
         snake_h_x--;
+        if(snake_h_x == fruit_x and snake_h_y == fruit_y){
+            snake_gui[snake_size][0] = snake_h_x;
+            snake_gui[snake_size][1] = snake_h_y;
+            snake_size++;
+            generate_fruit();
+            snake_h_x--;
+        }
     }
     else if(direction_ == 4){ //right
         snake_h_x++;
+        if(snake_h_x == fruit_x and snake_h_y == fruit_y){
+            snake_gui[snake_size][0] = snake_h_x;
+            snake_gui[snake_size][1] = snake_h_y;
+            snake_size++;
+            generate_fruit();
+            snake_h_x++;
+        }
     }
-    
         
     snake_gui[snake_size][0] = snake_h_x;
     snake_gui[snake_size][1] = snake_h_y;
@@ -165,6 +197,7 @@ void snake_control(){
         snake_gui[i][1] = temp[i][1];
     }
     free(temp);
+    Serial.print("snake: ");
     Serial.print(snake_h_x);
     Serial.print(" ");
     Serial.print(snake_h_y);
@@ -190,6 +223,7 @@ void loop() {
           }
       }
       if(check_game_state()){
+         wash_gui();
          draw_gui();
          print_gui();
       }
