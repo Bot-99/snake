@@ -1,15 +1,8 @@
 #include "LedControl.h"
 
 LedControl lc = LedControl(12,11,10,1);
-#define left_p 4
-#define right_p 5
-#define up_p 6
-#define down_p 7
 
-int left_s = 0;
-int right_s = 0;
-int up_s = 0;
-int down_s = 0;
+#define buttonpin A0
 
 int gui[8][8] = {{0,0,0,0,0,0,0,0},
                     {0,0,0,0,0,0,0,0},
@@ -20,10 +13,28 @@ int gui[8][8] = {{0,0,0,0,0,0,0,0},
                     {0,0,0,0,0,0,0,0},
                     {0,0,0,0,0,0,0,0}};
 
+int lose_gui[8][8] = {{1,0,0,0,0,0,0,1},
+                     {0,1,0,0,0,0,1,0},
+                    {0,0,1,0,0,1,0,0},
+                    {0,0,0,1,1,0,0,0},
+                    {0,0,0,1,1,0,0,0},
+                    {0,0,1,0,0,1,0,0},
+                    {0,1,0,0,0,0,1,0},
+                    {1,0,0,0,0,0,0,1}};
 
-int fruit_x = random(0,7);
-int fruit_y = random(0,7);
-int snake_h_x, snake_h_y, snake_t_x, snake_t_y;
+int fruit_x, fruit_y;
+
+int snake_gui[64][2];
+
+int snake_size = 3;
+int snake_h_x, snake_h_y; // snake_t_x, snake_t_y; //head and tail
+
+bool game_state = false;
+
+unsigned long timer = 0;
+
+int last_direction = 2;
+int direction_ = 3;
 
 void setup() {
     // put your setup code here, to run once:
@@ -33,35 +44,56 @@ void setup() {
     lc.setIntensity(0,8);
     lc.clearDisplay(0);
 
-    pinMode(left_p, INPUT);
-    pinMode(right_p, INPUT);
-    pinMode(up_p, INPUT);
-    pinMode(down_p, INPUT);
-
     generate_snake(); //fruit_x, fruit_y, gui
-    
+    generate_fruit();
+    draw_gui();
+    print_gui();
     delay(1000);
+//    Serial.println(snake_h_x);
+//    Serial.println(snake_h_y);
 }
 
 void generate_snake(){
-    snake_h_x = random(1,6);
-    snake_h_y = random(1,6);
-    snake_t_y = snake_h_y;
-    snake_t_x = snake_h_x - 1;
-    
-    gui[snake_h_x][snake_h_y] = 1;
-    gui[snake_t_x][snake_t_y] = 1;
+    snake_h_x = random(1,4);
+    snake_h_y = random(1,4);
+    Serial.println(snake_h_x);
+    Serial.println(snake_h_y);
+    snake_h_x = snake_h_y;
+    snake_gui[2][0] = snake_h_x; 
+    snake_gui[2][1] = snake_h_y;
+    snake_gui[1][0] = snake_h_x + 1; 
+    snake_gui[1][1] = snake_h_y;
+    snake_gui[0][0] = snake_h_x + 2; 
+    snake_gui[0][1] = snake_h_y;
+}
+
+bool compare_snake_fruit(){
+    for(int i = 0; i <= snake_size; i++){
+        if(snake_gui[i][0] == fruit_x and snake_gui[i][1] == fruit_y)
+            return true;
+    }
+    return false;
 }
 
 void generate_fruit(){ //int * fruit_x, int * fruit_y, int gui[8][8]
-//    while(fruit_x == snake_x and fruit_x == snake_x - 1 and fruit_y == snake_y){
-    fruit_x = random(0,7);
-    fruit_y = random(0,7);  
-    gui[fruit_x][fruit_y] = 1;
+    while(compare_snake_fruit()){
+        fruit_x = random(0,7);
+        fruit_y = random(0,7);  
+        //fruit_x = fruit_y; 
+    }
 //    Serial.print(x);
 //    Serial.print(" ");
 //    Serial.print(y);
 //    Serial.print("\n");
+}
+
+void draw_gui(){
+    gui[fruit_x][fruit_y] = 1;
+    for(int i = 0; i < snake_size; i++){
+        int x = snake_gui[i][0];
+        int y = snake_gui[i][1];
+        gui[x][y] = 1;
+    }
 }
 
 void print_gui(){
@@ -82,34 +114,84 @@ void wash_gui(){
 }
 
 void get_cmd(){
-    left_s = digitalRead(left_p);
-    right_s = digitalRead(right_p);
-    up_s = digitalRead(up_p);
-    down_s = digitalRead(down_p);
+    int value = analogRead(buttonpin);
+    //Serial.println(value);    
+
+    if(value >= 1020 and last_direction != 2){
+        //Serial.println("down");
+        direction_ = 1;
+    }
+    else if(value > 880 and value < 930 and last_direction != 1){
+        //Serial.println("up");
+        direction_ = 2;
+    }
+    else if(value > 980 and value < 1000 and last_direction != 4){
+       // Serial.println("left");
+        direction_ = 3;
+    }
+    else if(value < 600 and value > 500 and last_direction != 3){
+        //Serial.println("right");
+        direction_ = 4;
+    }
+
+    last_direction = direction_;
+}
+
+void snake_control(){
+    if(direction_ == 1){ //down
+        snake_h_y--;
+    }
+    else if(direction_ == 2){ //up
+        snake_h_y++;
+    }
+    else if(direction_ == 3){ //left
+        snake_h_x--;
+    }
+    else if(direction_ == 4){ //right
+        snake_h_x++;
+    }
     
-    if(left_s == HIGH){
-        Serial.println("left");
+        
+    snake_gui[snake_size][0] = snake_h_x;
+    snake_gui[snake_size][1] = snake_h_y;
+    
+    int temp[64][2];
+    for(int i = 0; i < snake_size; i++){
+        temp[i][0] = snake_gui[i+1][0];
+        temp[i][1] = snake_gui[i+1][1];
     }
-    else if(right_s == HIGH){
-        Serial.println("right");
+    for(int i = 0; i < snake_size; i++){
+        snake_gui[i][0] = temp[i][0] ;
+        snake_gui[i][1] = temp[i][1];
     }
-    else if(up_s == HIGH){
-        Serial.println("up");
+    free(temp);
+    Serial.print(snake_h_x);
+    Serial.print(" ");
+    Serial.print(snake_h_y);
+    Serial.print("\n");
+}
+
+bool check_game_state(){
+    if((snake_h_x < 0 or snake_h_x > 7) or (snake_h_y < 0 or snake_h_y > 7)){
+        return false;
     }
-    else if(down_s == HIGH){
-        Serial.println("down");
-    }
+    return true;
 }
 
 void loop() {
 //    generate_fruit(); //fruit_x, fruit_y, gui
+      wash_gui();
       get_cmd();
-      print_gui(); //gui
-//    delay(100);
-//     wash_gui(); //gui
-      delay(1);
-//    Serial.print(fruit_x);
-//    Serial.print(" ");
-//    Serial.print(fruit_y);
-//    Serial.print("\n");
+      unsigned long now_ = millis();
+      if(check_game_state()){
+          if(now_ - timer > 2000){
+              snake_control();
+              timer = now_;
+          }
+      }
+      if(check_game_state()){
+         draw_gui();
+         print_gui();
+      }
+
 }
